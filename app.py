@@ -178,7 +178,7 @@ defaults = {
     "stage": "input", "chat_history": [], "pdf_generated": None,
     "pdf_path": None, "jd_keywords": None, "cover_letter": None,
     "cover_letter_pdf_path": None, "job_description": None,
-    "company_name": None, "active_tab": "resume",
+    "company_name": None, "active_tab": "resume", "pdf_errors": None,
 }
 for key, val in defaults.items():
     if key not in st.session_state:
@@ -675,16 +675,59 @@ if mode == "🎯 Single Application":
 
         # Action buttons
         st.markdown("")
-        col_a, col_b = st.columns(2)
+        col_a, col_b, col_c = st.columns(3)
         with col_a:
-            if st.button("✅ Accept & Refine with AI Chat", type="primary", use_container_width=True):
-                st.session_state.stage = "chat"
+            if st.button("📄 Download PDFs Now", type="primary", use_container_width=True):
+                pdf_errors = []
+                with st.spinner("Generating Resume PDF..."):
+                    try:
+                        pdf_path = generate_pdf(st.session_state.optimized_data)
+                        st.session_state.pdf_path = pdf_path
+                    except Exception as e:
+                        pdf_errors.append(f"Resume PDF failed: {e}")
+                with st.spinner("Generating Cover Letter PDF..."):
+                    try:
+                        cl_pdf_path = generate_cover_letter_pdf(st.session_state.cover_letter)
+                        st.session_state.cover_letter_pdf_path = cl_pdf_path
+                    except Exception as e:
+                        pdf_errors.append(f"Cover letter PDF failed: {e}")
+                if pdf_errors:
+                    st.session_state.pdf_errors = pdf_errors
+                st.session_state.pdf_generated = True
                 st.rerun()
         with col_b:
+            if st.button("✏️ Refine with AI Chat", use_container_width=True):
+                st.session_state.stage = "chat"
+                st.rerun()
+        with col_c:
             if st.button("🔄 Start Over", use_container_width=True):
                 for key, val in defaults.items():
                     st.session_state[key] = val
                 st.rerun()
+
+        # Show download buttons after PDF generation
+        if st.session_state.pdf_generated:
+            if st.session_state.get("pdf_errors"):
+                for err in st.session_state.pdf_errors:
+                    st.error(err)
+
+            dl1, dl2 = st.columns(2)
+            if st.session_state.pdf_path and os.path.exists(st.session_state.pdf_path):
+                with dl1:
+                    with open(st.session_state.pdf_path, "rb") as f:
+                        st.download_button(
+                            "⬇️ Resume PDF", f.read(),
+                            "optimized_resume.pdf", "application/pdf",
+                            type="primary", use_container_width=True,
+                        )
+            if st.session_state.cover_letter_pdf_path and os.path.exists(st.session_state.cover_letter_pdf_path):
+                with dl2:
+                    with open(st.session_state.cover_letter_pdf_path, "rb") as f:
+                        st.download_button(
+                            "⬇️ Cover Letter PDF", f.read(),
+                            "cover_letter.pdf", "application/pdf",
+                            type="primary", use_container_width=True,
+                        )
 
 
     # ───── STAGE 3: CHAT REFINEMENT ─────
@@ -785,27 +828,36 @@ if mode == "🎯 Single Application":
 
             # Action buttons
             st.markdown("")
-            if st.button("📄 Finalize & Generate PDFs", type="primary", use_container_width=True):
-                with st.spinner("Generating Resume PDF..."):
-                    try:
-                        pdf_path = generate_pdf(st.session_state.optimized_data)
-                        st.session_state.pdf_path = pdf_path
-                    except Exception as e:
-                        st.error(f"Resume PDF failed: {e}")
+            if not st.session_state.pdf_generated:
+                if st.button("📄 Finalize & Generate PDFs", type="primary", use_container_width=True):
+                    pdf_errors = []
+                    with st.spinner("Generating Resume PDF..."):
+                        try:
+                            pdf_path = generate_pdf(st.session_state.optimized_data)
+                            st.session_state.pdf_path = pdf_path
+                        except Exception as e:
+                            pdf_errors.append(f"Resume PDF failed: {e}")
 
-                with st.spinner("Generating Cover Letter PDF..."):
-                    try:
-                        cl_pdf_path = generate_cover_letter_pdf(st.session_state.cover_letter)
-                        st.session_state.cover_letter_pdf_path = cl_pdf_path
-                    except Exception as e:
-                        st.error(f"Cover letter PDF failed: {e}")
+                    with st.spinner("Generating Cover Letter PDF..."):
+                        try:
+                            cl_pdf_path = generate_cover_letter_pdf(st.session_state.cover_letter)
+                            st.session_state.cover_letter_pdf_path = cl_pdf_path
+                        except Exception as e:
+                            pdf_errors.append(f"Cover letter PDF failed: {e}")
 
-                st.session_state.pdf_generated = True
-                st.rerun()
+                    if pdf_errors:
+                        st.session_state.pdf_errors = pdf_errors
+                    st.session_state.pdf_generated = True
+                    st.rerun()
 
             if st.session_state.pdf_generated:
+                # Show any errors from PDF generation
+                if st.session_state.get("pdf_errors"):
+                    for err in st.session_state.pdf_errors:
+                        st.error(err)
+
                 dl1, dl2 = st.columns(2)
-                if st.session_state.pdf_path:
+                if st.session_state.pdf_path and os.path.exists(st.session_state.pdf_path):
                     with dl1:
                         with open(st.session_state.pdf_path, "rb") as f:
                             st.download_button(
@@ -813,7 +865,7 @@ if mode == "🎯 Single Application":
                                 "optimized_resume.pdf", "application/pdf",
                                 type="primary", use_container_width=True,
                             )
-                if st.session_state.cover_letter_pdf_path:
+                if st.session_state.cover_letter_pdf_path and os.path.exists(st.session_state.cover_letter_pdf_path):
                     with dl2:
                         with open(st.session_state.cover_letter_pdf_path, "rb") as f:
                             st.download_button(
@@ -821,6 +873,14 @@ if mode == "🎯 Single Application":
                                 "cover_letter.pdf", "application/pdf",
                                 type="primary", use_container_width=True,
                             )
+
+                # Allow re-generating after chat edits
+                if st.button("🔄 Regenerate PDFs", use_container_width=True):
+                    st.session_state.pdf_generated = None
+                    st.session_state.pdf_path = None
+                    st.session_state.cover_letter_pdf_path = None
+                    st.session_state.pdf_errors = None
+                    st.rerun()
 
             if st.button("🔄 Start Over", use_container_width=True):
                 for key, val in defaults.items():
