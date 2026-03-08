@@ -2,7 +2,50 @@ import os
 import subprocess
 import tempfile
 import shutil
+import platform
+import stat
 from jinja2 import Environment, FileSystemLoader
+
+
+def _ensure_tectonic():
+    """Ensure tectonic is available. Auto-install on Linux (Streamlit Cloud) if missing."""
+    # Check if already available
+    if shutil.which("tectonic"):
+        return "tectonic"
+
+    # Check local install
+    local_bin = os.path.expanduser("~/.local/bin/tectonic")
+    if os.path.exists(local_bin):
+        return local_bin
+
+    # Auto-install on Linux (Streamlit Cloud)
+    if platform.system() == "Linux":
+        os.makedirs(os.path.expanduser("~/.local/bin"), exist_ok=True)
+        try:
+            subprocess.run(
+                ["curl", "-fsSL",
+                 "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.15.0/tectonic-0.15.0-x86_64-unknown-linux-gnu.tar.gz",
+                 "-o", "/tmp/tectonic.tar.gz"],
+                check=True, timeout=60,
+            )
+            subprocess.run(
+                ["tar", "xzf", "/tmp/tectonic.tar.gz", "-C",
+                 os.path.expanduser("~/.local/bin")],
+                check=True, timeout=30,
+            )
+            os.chmod(local_bin, os.stat(local_bin).st_mode | stat.S_IEXEC)
+            return local_bin
+        except Exception as e:
+            raise RuntimeError(
+                f"Tectonic not found and auto-install failed: {e}\n"
+                "Install manually: https://tectonic-typesetting.github.io/"
+            )
+
+    raise RuntimeError(
+        "Tectonic not found. Install it:\n"
+        "  macOS: brew install tectonic\n"
+        "  Linux: curl --proto '=https' --tlsv1.2 -fsSL https://drop-sh.fullyjustified.net | sh"
+    )
 
 
 def _escape_latex(text):
@@ -81,8 +124,9 @@ def generate_pdf(optimized_data, output_dir="outputs"):
             f.write(rendered_tex)
 
         # Run tectonic (handles multiple passes automatically)
+        tectonic_bin = _ensure_tectonic()
         result = subprocess.run(
-            ["tectonic", "resume.tex"],
+            [tectonic_bin, "resume.tex"],
             cwd=tmpdir,
             capture_output=True,
             text=True,

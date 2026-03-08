@@ -1,17 +1,4 @@
-import os
-import json
-from dotenv import load_dotenv
-from google import genai
-
-load_dotenv()
-
-try:
-    import streamlit as st
-    api_key = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
-except Exception:
-    api_key = os.getenv("GOOGLE_API_KEY")
-
-client = genai.Client(api_key=api_key)
+from services.gemini_client import get_client, parse_json_response
 
 
 def extract_jd_keywords(job_description):
@@ -35,15 +22,9 @@ Return ONLY a valid JSON array of strings. No explanation, no markdown.
 Example: ["Python", "AWS", "CI/CD", "team leadership", "agile methodology"]
 """
 
-    response = client.models.generate_content(
+    response = get_client().models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
     )
 
-    text = response.text.strip()
-    # Strip markdown code fences if present
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0].strip()
-
-    return json.loads(text)
+    return parse_json_response(response.text)

@@ -1,17 +1,5 @@
-import os
 import json
-from dotenv import load_dotenv
-from google import genai
-
-load_dotenv()
-
-try:
-    import streamlit as st
-    api_key = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
-except Exception:
-    api_key = os.getenv("GOOGLE_API_KEY")
-
-client = genai.Client(api_key=api_key)
+from services.gemini_client import get_client, parse_json_response
 
 
 def optimize_resume(resume_text, job_description, jd_keywords):
@@ -97,18 +85,12 @@ If a section has no data in the original resume, use an empty array [] for lists
 Projects section: include only if the original resume has projects. Otherwise use empty array [].
 """
 
-    response = client.models.generate_content(
+    response = get_client().models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
     )
 
-    text = response.text.strip()
-    # Strip markdown code fences if present
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0].strip()
-
-    return json.loads(text)
+    return parse_json_response(response.text)
 
 
 def refine_resume(optimized_data, user_instruction):
@@ -131,14 +113,9 @@ USER INSTRUCTION:
 
 Return ONLY the complete updated JSON (no markdown, no explanation). Same structure as input."""
 
-    response = client.models.generate_content(
+    response = get_client().models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
     )
 
-    text = response.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0].strip()
-
-    return json.loads(text)
+    return parse_json_response(response.text)

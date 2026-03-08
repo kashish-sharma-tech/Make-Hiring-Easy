@@ -3,19 +3,9 @@ import json
 import subprocess
 import tempfile
 import shutil
-from dotenv import load_dotenv
-from google import genai
 from jinja2 import Environment, FileSystemLoader
-
-load_dotenv()
-
-try:
-    import streamlit as st
-    api_key = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
-except Exception:
-    api_key = os.getenv("GOOGLE_API_KEY")
-
-client = genai.Client(api_key=api_key)
+from services.gemini_client import get_client, parse_json_response
+from services.pdf_generator import _ensure_tectonic
 
 
 def generate_cover_letter(optimized_data, job_description, company_name=""):
@@ -50,17 +40,12 @@ Return ONLY valid JSON with this structure (no markdown, no explanation):
 }}
 """
 
-    response = client.models.generate_content(
+    response = get_client().models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
     )
 
-    text = response.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0].strip()
-
-    return json.loads(text)
+    return parse_json_response(response.text)
 
 
 def refine_cover_letter(cover_letter_data, user_instruction):
@@ -83,17 +68,12 @@ USER INSTRUCTION:
 
 Return ONLY the complete updated JSON (no markdown, no explanation). Same structure as input."""
 
-    response = client.models.generate_content(
+    response = get_client().models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
     )
 
-    text = response.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0].strip()
-
-    return json.loads(text)
+    return parse_json_response(response.text)
 
 
 def _escape_latex(text):
@@ -145,8 +125,9 @@ def generate_cover_letter_pdf(cover_letter_data, output_dir="outputs"):
         with open(tex_path, "w") as f:
             f.write(rendered_tex)
 
+        tectonic_bin = _ensure_tectonic()
         result = subprocess.run(
-            ["tectonic", "cover_letter.tex"],
+            [tectonic_bin, "cover_letter.tex"],
             cwd=tmpdir, capture_output=True, text=True, timeout=60,
         )
 

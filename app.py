@@ -11,6 +11,7 @@ from services.cover_letter_generator import (
     generate_cover_letter, refine_cover_letter, generate_cover_letter_pdf,
 )
 from services.jd_scraper import scrape_jd_from_url
+from services.jd_doc_parser import extract_jd_from_document
 from services.batch_processor import process_batch
 
 
@@ -464,9 +465,10 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("""
 **How it works:**
 1. Upload your resume PDF
-2. Paste JD or enter a job URL
+2. Paste JD, enter URL, or upload JD doc
 3. AI optimizes for ATS + generates cover letter
-4. Refine with chat → download PDFs
+4. Review ATS score + keyword gaps
+5. Refine with chat → download PDFs
 """)
 
 
@@ -520,10 +522,14 @@ if mode == "🎯 Single Application":
             st.markdown("##### 📋 Job Description")
             jd_input_method = st.radio(
                 "How do you want to provide the JD?",
-                ["✍️ Paste Text", "🔗 Enter URL"],
+                ["✍️ Paste Text", "🔗 Enter URL", "📄 Upload Document"],
                 horizontal=True,
                 label_visibility="collapsed",
             )
+
+            job_description = None
+            job_url = None
+            jd_file = None
 
             if jd_input_method == "✍️ Paste Text":
                 job_description = st.text_area(
@@ -531,22 +537,30 @@ if mode == "🎯 Single Application":
                     height=220,
                     placeholder="Paste the full job description here...",
                 )
-                job_url = None
-            else:
+            elif jd_input_method == "🔗 Enter URL":
                 job_url = st.text_input(
                     "Job Posting URL",
                     placeholder="https://linkedin.com/jobs/view/123456 or any career page",
                 )
                 st.caption("Works with LinkedIn, Indeed, company career pages, and most job boards")
-                job_description = None
+            else:
+                jd_file = st.file_uploader(
+                    "Upload JD Document",
+                    type=["pdf", "docx", "doc", "txt"],
+                    help="Upload a job description in PDF, DOCX, or TXT format",
+                    key="jd_doc",
+                )
 
         st.markdown("")
         if st.button("🚀 Optimize Resume + Generate Cover Letter", type="primary", use_container_width=True):
             if resume_file is None:
                 st.error("Please upload a resume.")
                 st.stop()
-            if not (job_description and job_description.strip()) and not (job_url and job_url.strip()):
-                st.error("Please paste a job description or enter a job URL.")
+            has_jd = job_description and job_description.strip()
+            has_url = job_url and job_url.strip()
+            has_doc = jd_file is not None
+            if not has_jd and not has_url and not has_doc:
+                st.error("Please paste a job description, enter a URL, or upload a document.")
                 st.stop()
 
             os.makedirs("uploads", exist_ok=True)
@@ -562,9 +576,20 @@ if mode == "🎯 Single Application":
             progress.progress(10, text="📄 Extracting resume text...")
             st.session_state.resume_text = extract_resume_text(resume_path)
 
-            # Step 2: Scrape JD if URL
+            # Step 2: Extract JD from document or scrape URL
             company_name = ""
-            if job_url and job_url.strip():
+            if jd_file is not None:
+                progress.progress(20, text="📄 Extracting JD from uploaded document...")
+                try:
+                    jd_doc_path = os.path.join("uploads", jd_file.name)
+                    with open(jd_doc_path, "wb") as f:
+                        f.write(jd_file.read())
+                    job_description = extract_jd_from_document(jd_doc_path)
+                except Exception as e:
+                    st.error(f"Failed to extract JD from document: {e}")
+                    st.stop()
+
+            elif job_url and job_url.strip():
                 progress.progress(20, text="🌐 Scraping job description from URL...")
                 try:
                     scraped = scrape_jd_from_url(job_url.strip())
