@@ -1,0 +1,92 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=0.6in]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{xcolor}
+
+% Remove page numbers
+\pagestyle{empty}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{10pt}{6pt}
+
+% Tighter lists
+\setlist[itemize]{nosep, leftmargin=1.5em, label=\textbullet}
+
+\begin{document}
+
+% ===== HEADER =====
+\begin{center}
+    {\LARGE\bfseries \VAR{name}} \\[4pt]
+    \BLOCK{if phone}\VAR{phone}\BLOCK{endif}
+    \BLOCK{if email} $\mid$ \href{mailto:\VAR{email}}{\VAR{email}}\BLOCK{endif}
+    \BLOCK{if linkedin} $\mid$ \href{\VAR{linkedin}}{LinkedIn}\BLOCK{endif}
+    \BLOCK{if github} $\mid$ \href{\VAR{github}}{GitHub}\BLOCK{endif}
+    \BLOCK{if location} $\mid$ \VAR{location}\BLOCK{endif}
+\end{center}
+
+% ===== SUMMARY =====
+\BLOCK{if summary}
+\section{Summary}
+\VAR{summary}
+\BLOCK{endif}
+
+% ===== EXPERIENCE =====
+\BLOCK{if experience}
+\section{Experience}
+\BLOCK{for job in experience}
+\textbf{\VAR{job.title}} \hfill \VAR{job.duration} \\
+\textit{\VAR{job.company}} \\[-6pt]
+\begin{itemize}
+\BLOCK{for bullet in job.bullets}
+    \item \VAR{bullet}
+\BLOCK{endfor}
+\end{itemize}
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ===== PROJECTS =====
+\BLOCK{if projects}
+\section{Projects}
+\BLOCK{for project in projects}
+\textbf{\VAR{project.name}} \BLOCK{if project.tech}$\mid$ \textit{\VAR{project.tech}}\BLOCK{endif} \BLOCK{if project.duration}\hfill \VAR{project.duration}\BLOCK{endif} \\[-6pt]
+\begin{itemize}
+\BLOCK{for bullet in project.bullets}
+    \item \VAR{bullet}
+\BLOCK{endfor}
+\end{itemize}
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ===== SKILLS =====
+\BLOCK{if skills}
+\section{Skills}
+\VAR{skills | join(', ')}
+\BLOCK{endif}
+
+% ===== EDUCATION =====
+\BLOCK{if education}
+\section{Education}
+\BLOCK{for edu in education}
+\textbf{\VAR{edu.degree}} \hfill \VAR{edu.year} \\
+\textit{\VAR{edu.institution}}
+\BLOCK{if not loop.last}\\[4pt]\BLOCK{endif}
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ===== CERTIFICATIONS =====
+\BLOCK{if certifications}
+\section{Certifications}
+\begin{itemize}
+\BLOCK{for cert in certifications}
+    \item \VAR{cert}
+\BLOCK{endfor}
+\end{itemize}
+\BLOCK{endif}
+
+\end{document}
