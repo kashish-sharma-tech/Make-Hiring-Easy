@@ -22,6 +22,16 @@ def _ensure_tectonic():
     if platform.system() == "Linux":
         os.makedirs(os.path.expanduser("~/.local/bin"), exist_ok=True)
         try:
+            # Install required shared libraries if missing
+            subprocess.run(
+                ["apt-get", "install", "-y", "-qq",
+                 "libgraphite2-3", "libharfbuzz0b", "libfontconfig1", "libfreetype6"],
+                capture_output=True, timeout=60,
+            )
+        except Exception:
+            pass  # packages.txt should handle this, but try anyway
+
+        try:
             subprocess.run(
                 ["curl", "-fsSL",
                  "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.15.0/tectonic-0.15.0-x86_64-unknown-linux-gnu.tar.gz",
