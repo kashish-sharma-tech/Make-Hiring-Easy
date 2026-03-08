@@ -1,7 +1,7 @@
 import re
 import requests
 from bs4 import BeautifulSoup
-from services.gemini_client import get_client, parse_json_response
+from services.gemini_client import generate, parse_json_response
 
 HEADERS = {
     "User-Agent": (
@@ -124,9 +124,6 @@ Return ONLY valid JSON with this structure (no markdown, no explanation):
 }}
 """
 
-    response = get_client().models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response = generate(prompt)
 
     return parse_json_response(response.text)

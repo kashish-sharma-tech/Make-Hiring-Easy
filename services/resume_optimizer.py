@@ -1,5 +1,5 @@
 import json
-from services.gemini_client import get_client, parse_json_response
+from services.gemini_client import generate, parse_json_response
 
 
 def optimize_resume(resume_text, job_description, jd_keywords):
@@ -85,11 +85,7 @@ If a section has no data in the original resume, use an empty array [] for lists
 Projects section: include only if the original resume has projects. Otherwise use empty array [].
 """
 
-    response = get_client().models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
+    response = generate(prompt)
     return parse_json_response(response.text)
 
 
@@ -113,9 +109,5 @@ USER INSTRUCTION:
 
 Return ONLY the complete updated JSON (no markdown, no explanation). Same structure as input."""
 
-    response = get_client().models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
+    response = generate(prompt)
     return parse_json_response(response.text)

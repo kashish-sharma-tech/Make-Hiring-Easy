@@ -39,6 +39,34 @@ def get_client():
     return _client
 
 
+# Model to use — fallback chain if primary isn't available
+MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+
+
+def generate(prompt):
+    """Call Gemini with automatic model fallback on errors."""
+    client = get_client()
+    last_error = None
+
+    for model in MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+            )
+            return response
+        except Exception as e:
+            last_error = e
+            # If it's a model-not-found or permission error, try next model
+            error_str = str(e).lower()
+            if any(kw in error_str for kw in ["not found", "permission", "not supported", "invalid"]):
+                continue
+            # For rate limits or other transient errors, also try next model
+            continue
+
+    raise last_error
+
+
 def parse_json_response(text):
     """Robustly parse JSON from Gemini response, handling common issues.
 

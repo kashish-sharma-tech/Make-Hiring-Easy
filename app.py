@@ -12,7 +12,7 @@ from services.cover_letter_generator import (
 )
 from services.jd_scraper import scrape_jd_from_url
 from services.jd_doc_parser import extract_jd_from_document
-from services.batch_processor import process_batch
+# from services.batch_processor import process_batch  # Batch mode disabled for now
 
 
 st.set_page_config(page_title="AI Resume Optimizer", page_icon="📄", layout="wide")
@@ -454,12 +454,14 @@ def render_cover_letter_preview(cl):
 # MODE SELECTION
 # ===========================================================================
 st.sidebar.markdown("### ⚙️ Mode")
-mode = st.sidebar.radio(
-    "Choose mode",
-    ["🎯 Single Application", "📦 Batch Processing"],
-    index=0,
-    label_visibility="collapsed",
-)
+# Batch mode disabled for now — only single application mode
+mode = "🎯 Single Application"
+# mode = st.sidebar.radio(
+#     "Choose mode",
+#     ["🎯 Single Application", "📦 Batch Processing"],
+#     index=0,
+#     label_visibility="collapsed",
+# )
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("""
@@ -827,142 +829,10 @@ if mode == "🎯 Single Application":
 
 
 # ===========================================================================
-# BATCH PROCESSING MODE
+# BATCH PROCESSING MODE (disabled for now)
 # ===========================================================================
-elif mode == "📦 Batch Processing":
-    st.markdown("""
-    <div class="preview-card" style="border-top: 3px solid #764ba2;">
-        <h3>📦 Batch Processing — One Click, 50 Applications</h3>
-        <p>Upload your resume + a CSV of job URLs → AI generates <strong>optimized resumes + cover letters</strong> for every job, organized in company folders.</p>
-        <p style="margin-top:0.8rem;">
-            <strong>CSV format:</strong><br>
-            <code>job_url, company_name</code> &nbsp;(company_name is optional — will be auto-detected from the page)
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Feature highlights for batch
-    st.markdown("""
-    <div class="feature-grid">
-        <div class="feature-card">
-            <div class="feature-icon">🌐</div>
-            <div class="feature-title">Auto-Scrape JDs</div>
-            <div class="feature-desc">Just give URLs — no copy-pasting</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">📂</div>
-            <div class="feature-title">Company Folders</div>
-            <div class="feature-desc">Organized output per company</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">📄</div>
-            <div class="feature-title">Resume + Cover Letter</div>
-            <div class="feature-desc">Both PDFs for each application</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">📦</div>
-            <div class="feature-title">ZIP Download</div>
-            <div class="feature-desc">One download, all files included</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("##### 📎 Your Resume")
-        batch_resume = st.file_uploader("Upload Resume PDF", type=["pdf"], key="batch_resume")
-    with col2:
-        st.markdown("##### 📋 Job URLs CSV")
-        csv_file = st.file_uploader("Upload CSV", type=["csv"], key="batch_csv")
-
-    if csv_file:
-        csv_content = csv_file.read().decode("utf-8")
-        csv_file.seek(0)
-        lines = csv_content.strip().split("\n")
-        job_count = max(0, len(lines) - 1)
-        st.markdown(f"Found **{job_count}** job entries")
-        with st.expander("Preview CSV"):
-            st.code(csv_content[:2000])
-
-    st.markdown("")
-    if st.button("🚀 Process All Jobs", type="primary", use_container_width=True):
-        if batch_resume is None:
-            st.error("Please upload your resume.")
-            st.stop()
-        if csv_file is None:
-            st.error("Please upload a CSV file with job URLs.")
-            st.stop()
-
-        os.makedirs("uploads", exist_ok=True)
-        resume_path = os.path.join("uploads", batch_resume.name)
-        with open(resume_path, "wb") as f:
-            f.write(batch_resume.read())
-
-        resume_text = extract_resume_text(resume_path)
-
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-
-        def update_progress(current, total, company, status_msg):
-            pct = current / total if total > 0 else 0
-            progress_bar.progress(pct, text=f"[{current}/{total}] {company}: {status_msg}")
-
-        with st.spinner("Processing batch..."):
-            try:
-                batch_result = process_batch(resume_text, csv_file, progress_callback=update_progress)
-            except Exception as e:
-                st.error(f"Batch processing failed: {e}")
-                st.stop()
-
-        progress_bar.progress(1.0, text="✅ Complete!")
-
-        # Results
-        st.markdown("### 📊 Results")
-        col_s1, col_s2, col_s3 = st.columns(3)
-        with col_s1:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-number">{batch_result['total']}</div>
-                <div class="stat-label">Total Jobs</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col_s2:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-number" style="color:#155724;">{batch_result['successful']}</div>
-                <div class="stat-label">✅ Successful</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col_s3:
-            failed = batch_result['total'] - batch_result['successful']
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-number" style="color:{'#721c24' if failed else '#155724'};">{failed}</div>
-                <div class="stat-label">{"❌ Failed" if failed else "✅ No Failures"}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown("")
-        for r in batch_result["results"]:
-            css = "batch-success" if r["success"] else "batch-fail"
-            icon = "✅" if r["success"] else "❌"
-            seniority = f' &nbsp;|&nbsp; <em>{r["seniority"]}</em>' if r.get("seniority") else ""
-            error_html = f'<br><small style="color:#dc3545;">{r["error"]}</small>' if r.get("error") else ""
-            title = f" — {r['job_title']}" if r.get("job_title") else ""
-            st.markdown(f"""
-            <div class="batch-result {css}">
-                {icon} <strong>{r['company']}</strong>{title}{seniority}
-                {error_html}
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown("")
-        if os.path.exists(batch_result.get("zip_path", "")):
-            with open(batch_result["zip_path"], "rb") as f:
-                st.download_button(
-                    "⬇️ Download All Applications (ZIP)",
-                    f.read(), "all_applications.zip", "application/zip",
-                    type="primary", use_container_width=True,
-                )
+# elif mode == "📦 Batch Processing":
+#     # Batch processing is temporarily disabled.
+#     # To re-enable: uncomment this block and the mode radio above,
+#     # and uncomment the process_batch import at the top.
+#     pass

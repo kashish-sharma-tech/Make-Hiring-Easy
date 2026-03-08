@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import shutil
 from jinja2 import Environment, FileSystemLoader
-from services.gemini_client import get_client, parse_json_response
+from services.gemini_client import generate, parse_json_response
 from services.pdf_generator import _ensure_tectonic
 
 
@@ -40,10 +40,7 @@ Return ONLY valid JSON with this structure (no markdown, no explanation):
 }}
 """
 
-    response = get_client().models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response = generate(prompt)
 
     return parse_json_response(response.text)
 
@@ -68,10 +65,7 @@ USER INSTRUCTION:
 
 Return ONLY the complete updated JSON (no markdown, no explanation). Same structure as input."""
 
-    response = get_client().models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response = generate(prompt)
 
     return parse_json_response(response.text)
 

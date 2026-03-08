@@ -1,4 +1,4 @@
-from services.gemini_client import get_client, parse_json_response
+from services.gemini_client import generate, parse_json_response
 
 
 def extract_jd_keywords(job_description):
@@ -22,9 +22,5 @@ Return ONLY a valid JSON array of strings. No explanation, no markdown.
 Example: ["Python", "AWS", "CI/CD", "team leadership", "agile methodology"]
 """
 
-    response = get_client().models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
+    response = generate(prompt)
     return parse_json_response(response.text)
